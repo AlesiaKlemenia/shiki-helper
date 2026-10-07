@@ -124,13 +124,13 @@ shiki-helper/
 ## 4. Этапы разработки
 
 ### Этап 1: Инфраструктурный каркас, База Данных и Redis
-- [ ] Инициализация структуры файлов и каталогов проекта в `E:\shiki-helper`.
-- [ ] Оформление `.env.example`, `requirements.txt` (с `redis`, `asyncpg`, `aiogram-dialog`), `Dockerfile` и `docker-compose.yml` (с локальным контейнером Redis).
-- [ ] Настройка асинхронного подключения к БД через SQLAlchemy (`app/db/session.py`).
-- [ ] Конфигурация Redis FSM с graceful degradation: проверка `PING` при старте и автоматический fallback на `MemoryStorage`, если Redis недоступен.
-- [ ] Shadow DB / Sandbox mode: реализация `DynamicSessionMaker` с поддержкой `ContextVar` для переключения сессии пользователя в in-memory SQLite при включенном тестовом режиме админки.
-- [ ] Описание моделей (`User`, `GoogleAuth`, `TrackedTitle`) и настройка миграций Alembic.
-- [ ] Реализация шифрования OAuth токенов через `cryptography.fernet` (`app/core/security.py`).
+- [x] Инициализация структуры файлов и каталогов проекта в `E:\shiki-helper`.
+- [x] Оформление `.env.example`, `requirements.txt` (с `redis`, `asyncpg`, `aiogram-dialog`), `Dockerfile` и `docker-compose.yml` (с локальным контейнером Redis).
+- [x] Настройка асинхронного подключения к БД через SQLAlchemy (`app/db/session.py`).
+- [x] Конфигурация Redis FSM с graceful degradation: проверка `PING` при старте и автоматический fallback на `MemoryStorage`, если Redis недоступен.
+- [x] Shadow DB / Sandbox mode: реализация `DynamicSessionMaker` с поддержкой `ContextVar` для переключения сессии пользователя в in-memory SQLite при включенном тестовом режиме админки.
+- [x] Описание моделей (`User`, `GoogleAuth`, `TrackedTitle`) и настройка миграций Alembic.
+- [x] Реализация шифрования OAuth токенов через `cryptography.fernet` (`app/core/security.py`).
 
 ### Этап 2: Клиент Shikimori GraphQL API и Resilience
 - [ ] Реализация `ShikimoriGraphQLClient` (`app/clients/shikimori.py`):
