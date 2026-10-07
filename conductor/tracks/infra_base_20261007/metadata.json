@@ -1,0 +1,18 @@
+{
+  "track_id": "infra_base_20261007",
+  "name": "Инфраструктурный каркас, База Данных и Redis",
+  "type": "MVP",
+  "status": "new",
+  "created_at": "2026-10-07T18:48:00+03:00",
+  "updated_at": "2026-10-07T18:48:00+03:00",
+  "plan_reference": "PLAN.md § Этап 1",
+  "phases": [
+    "Phase 1: Структура проекта, конфигурация и зависимости",
+    "Phase 2: Структурированное логирование и шифрование токенов",
+    "Phase 3: Async подключение к БД (SQLAlchemy session)",
+    "Phase 4: Модели данных (SQLAlchemy 2.0)",
+    "Phase 5: Redis FSM Storage с graceful degradation",
+    "Phase 6: Shadow DB / Sandbox mode",
+    "Phase 7: Точка входа и итоговая проверка"
+  ]
+}
