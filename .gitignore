@@ -1,0 +1,88 @@
+# =============================================================================
+# Shiki-Helper — .gitignore
+# =============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.installed.cfg
+MANIFEST
+
+# --- Virtual Environments ---
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Secrets / Environment ---
+.env
+*.env.local
+*.env.production
+
+# --- Database files ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Test / Coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+nosetests.xml
+test-results/
+
+# --- MyPy / Ruff / Linters ---
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# --- IDE / Editors ---
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Docker ---
+.docker/
+
+# --- Google OAuth credentials (НЕ хранить в репо!) ---
+credentials.json
+token.json
+*.pickle
+
+# --- Alembic ---
+# Сами миграции коммитим, но не кэш
+migrations/__pycache__/

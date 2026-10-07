@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # ---------------------------------------------------------------------------
+  # Telegram-бот (основной сервис)
+  # ---------------------------------------------------------------------------
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shiki-helper-bot
+    env_file:
+      - .env
+    environment:
+      # Переопределяем REDIS_URL на внутренний Docker-хост
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - shiki-net
+
+  # ---------------------------------------------------------------------------
+  # Redis (FSM Storage + кэш)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: shiki-helper-redis
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      # Открываем порт только для локальной разработки
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - shiki-net
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  shiki-net:
+    driver: bridge
