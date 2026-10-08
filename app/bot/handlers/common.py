@@ -6,6 +6,7 @@ from typing import Any
 from aiogram import Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
@@ -142,8 +143,11 @@ async def cmd_code(message: Message, session: AsyncSession) -> None:
         )
         encrypted_token = helper.exchange_code_for_encrypted_token(auth_code)
 
-        # Сохраняем или обновляем в базе
-        creds = await session.get(GoogleCredentials, user_id)
+        # Сохраняем или обновляем в базе (по user_id, так как PK — суррогатный id)
+        stmt = select(GoogleCredentials).where(GoogleCredentials.user_id == user_id)
+        result = await session.execute(stmt)
+        creds = result.scalar_one_or_none()
+
         if creds is None:
             creds = GoogleCredentials(
                 user_id=user_id,
@@ -195,7 +199,10 @@ async def cmd_sheet(message: Message, session: AsyncSession) -> None:
     match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", raw_input)
     spreadsheet_id = match.group(1) if match else raw_input
 
-    creds = await session.get(GoogleCredentials, user_id)
+    stmt = select(GoogleCredentials).where(GoogleCredentials.user_id == user_id)
+    result = await session.execute(stmt)
+    creds = result.scalar_one_or_none()
+
     if creds is None:
         await message.answer(
             "⚠️ Сначала авторизуйте аккаунт через команду /auth, а затем привяжите таблицу.",
@@ -212,6 +219,9 @@ async def cmd_sheet(message: Message, session: AsyncSession) -> None:
         "Теперь вы можете проверить синхронизацию командой <b>/sync</b>!",
         parse_mode="HTML",
     )
+
+
+@common_router.callback_query(lambda c: c.data == "menu_open_titles")
 async def cb_open_titles(query: Any, dialog_manager: Any) -> None:
     """Открытие диалога тайтлов из меню."""
     from app.bot.dialogs.titles.dialog import TitlesSG

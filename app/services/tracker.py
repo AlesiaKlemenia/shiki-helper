@@ -50,8 +50,8 @@ class TrackerService:
         res_titles = await self.session.execute(stmt_titles)
         db_titles_map = {t.shiki_id: t for t in res_titles.scalars().all()}
 
-        # Собираем целевые тайтлы для проверки: {shiki_id: (title_name, row_index, old_aired, status)}
-        target_map: dict[int, tuple[str, Optional[int], int, str, Optional[int]]] = {}
+        # Собираем целевые тайтлы для проверки: {shiki_id: (title_name, row_index, old_aired, status, total_eps, current_sheet_text)}
+        target_map: dict[int, tuple[str, Optional[int], int, str, Optional[int], str]] = {}
         sheets_client: Optional[GoogleSheetsClient] = None
         spreadsheet_id: Optional[str] = None
 
@@ -80,6 +80,7 @@ class TrackerService:
                     old_aired,
                     row.status,
                     total_episodes,
+                    row.current_episodes_text,
                 )
         else:
             # Источник — только БД
@@ -90,6 +91,7 @@ class TrackerService:
                     t.last_episodes_aired,
                     t.status_in_table,
                     t.total_episodes,
+                    "",
                 )
 
         if not target_map:
@@ -106,7 +108,7 @@ class TrackerService:
         sheets_updates: list[tuple[int, str]] = []
 
         # 4. Анализ дельт
-        for shiki_id, (title_name, row_idx, old_aired, status, total_eps) in target_map.items():
+        for shiki_id, (title_name, row_idx, old_aired, status, total_eps, cur_sheet_text) in target_map.items():
             info = anime_infos_map.get(shiki_id)
             if not info:
                 continue
@@ -147,10 +149,11 @@ class TrackerService:
                     )
                 )
 
-                # Добавляем в список на обновление ячейки в Google Sheets
-                if row_idx is not None:
-                    cell_val = format_episodes_cell(aired=new_aired, total=actual_total)
-                    sheets_updates.append((row_idx, cell_val))
+            # Добавляем в список на обновление ячейки в Google Sheets, если значение в таблице отличается
+            if row_idx is not None:
+                expected_cell_val = format_episodes_cell(aired=new_aired, total=actual_total)
+                if cur_sheet_text.strip() != expected_cell_val:
+                    sheets_updates.append((row_idx, expected_cell_val))
 
         # 5. Пакетное обновление Google Таблицы
         if sheets_client and spreadsheet_id and sheets_updates:

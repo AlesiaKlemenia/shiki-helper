@@ -19,7 +19,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-GRAPHQL_URL = "https://shikimori.one/api/graphql"
+GRAPHQL_URL = "https://shikimori.io/api/graphql"
 DEFAULT_USER_AGENT = "Shiki-Helper-Bot/1.0"
 BATCH_SIZE = 50
 

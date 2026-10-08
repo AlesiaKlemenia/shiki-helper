@@ -12,7 +12,7 @@ import respx
 from app.clients.shikimori import AnimeInfo, ShikimoriAPIError, ShikimoriGraphQLClient
 
 
-GRAPHQL_URL = "https://shikimori.one/api/graphql"
+GRAPHQL_URL = "https://shikimori.io/api/graphql"
 
 
 class TestAnimeInfoModel:
