@@ -88,12 +88,8 @@ class DynamicSessionMaker:
             database_url: Строка подключения к боевой БД.
         """
         self._database_url = database_url
-        self._production_engine = create_async_engine(
-            database_url,
-            connect_args={"check_same_thread": False}
-            if database_url.startswith("sqlite")
-            else {},
-        )
+        from app.db.session import create_async_engine_from_url
+        self._production_engine = create_async_engine_from_url(database_url)
         self._production_factory = async_sessionmaker(
             bind=self._production_engine,
             class_=AsyncSession,

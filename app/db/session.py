@@ -51,7 +51,12 @@ def create_async_engine_from_url(database_url: str) -> AsyncEngine:
         "echo": False,  # Включить для отладки SQL: True
     }
 
-    if is_sqlite:
+    if not is_sqlite:
+        # Для PostgreSQL c драйвером asyncpg параметр sslmode не поддерживается напрямую в DBAPI kwargs,
+        # поэтому заменяем sslmode= на ssl=, если он передан в строке подключения.
+        if "sslmode=" in database_url:
+            database_url = database_url.replace("sslmode=require", "ssl=require").replace("sslmode=", "ssl=")
+    else:
         # SQLite не поддерживает connection pool в async режиме
         engine_kwargs["connect_args"] = {"check_same_thread": False}
 

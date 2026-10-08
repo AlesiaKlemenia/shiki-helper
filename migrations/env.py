@@ -47,18 +47,20 @@ def get_database_url() -> str:
     """
     # Сначала проверяем переменную окружения напрямую (для CI/миграций)
     url = os.environ.get("DATABASE_URL")
-    if url:
-        return url
+    if not url:
+        try:
+            from app.config import settings
+            url = settings.database_url
+        except Exception as exc:
+            raise ValueError(
+                "DATABASE_URL не задан. "
+                "Установите переменную окружения DATABASE_URL или создайте .env файл."
+            ) from exc
 
-    # Затем пробуем через pydantic settings
-    try:
-        from app.config import settings
-        return settings.database_url
-    except Exception as exc:
-        raise ValueError(
-            "DATABASE_URL не задан. "
-            "Установите переменную окружения DATABASE_URL или создайте .env файл."
-        ) from exc
+    if url and "sslmode=" in url and not url.startswith("sqlite"):
+        url = url.replace("sslmode=require", "ssl=require").replace("sslmode=", "ssl=")
+
+    return url
 
 
 def run_migrations_offline() -> None:
