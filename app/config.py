@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, cast
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -92,9 +92,6 @@ class Settings(BaseSettings):
         default="INFO",
         description="Уровень логирования: DEBUG, INFO, WARNING, ERROR",
     )
-
-
-from typing import Optional, cast
 
 
 def get_settings() -> Settings:
