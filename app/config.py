@@ -86,6 +86,10 @@ class Settings(BaseSettings):
         ...,
         description="Telegram ID администратора для получения уведомлений о сбоях",
     )
+    sandbox_user_ids: list[int] = Field(
+        default_factory=list,
+        description="Список Telegram ID пользователей, для которых включен изолированный режим sandbox",
+    )
 
     # --- Логирование ---
     log_level: str = Field(

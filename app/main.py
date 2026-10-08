@@ -52,12 +52,41 @@ async def main() -> None:
         raise
 
     # --- 3. Инициализация Bot и Dispatcher ---
+    from aiogram_dialog import setup_dialogs
+    from app.bot.dialogs.onboarding.dialog import onboarding_dialog
+    from app.bot.dialogs.titles.dialog import titles_dialog
+    from app.bot.handlers.common import common_router
+    from app.bot.handlers.manual import manual_router
+    from app.bot.middlewares.db import DbSessionMiddleware
+    from app.bot.middlewares.sandbox import SandboxMiddleware
+    from app.db.sandbox import DynamicSessionMaker
+    from app.db.session import create_session_factory
+
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher(storage=storage)
 
-    # TODO(phase-5): Регистрация роутеров, middleware и диалогов
-    # dp.include_router(common_router)
-    # dp.include_router(dialogs_router)
+    dynamic_session_maker = DynamicSessionMaker(database_url=settings.database_url)
+    session_factory = create_session_factory(database_url=settings.database_url)
+
+    # Регистрация Middlewares
+    dp.update.middleware(DbSessionMiddleware(session_factory=session_factory))
+    dp.update.middleware(
+        SandboxMiddleware(
+            session_maker=dynamic_session_maker,
+            sandbox_user_ids=set(settings.sandbox_user_ids),
+        )
+    )
+
+    # Регистрация диалогов aiogram-dialog
+    dp.include_router(onboarding_dialog)
+    dp.include_router(titles_dialog)
+
+    # Регистрация основных роутеров
+    dp.include_router(common_router)
+    dp.include_router(manual_router)
+
+    # Настройка aiogram-dialog
+    setup_dialogs(dp)
 
     # --- 4. Запуск polling ---
     try:
