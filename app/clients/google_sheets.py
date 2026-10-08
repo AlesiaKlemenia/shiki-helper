@@ -222,19 +222,19 @@ class GoogleSheetsClient:
             valid_rows: list[SheetRow] = []
 
             for idx, row in enumerate(raw_values, start=2):
-                if not row or len(row) < 3:
+                if not row or len(row) < 2:
                     continue
 
                 title_ru = str(row[0]).strip()
                 shiki_link = str(row[1]).strip()
-                status = str(row[2]).strip()
-                episodes_text = str(row[3]).strip() if len(row) > 3 else ""
+                status = str(row[2]).strip() if len(row) > 2 and row[2] else "В работе"
+                episodes_text = str(row[3]).strip() if len(row) > 3 and row[3] else ""
 
-                if not title_ru or not status:
+                if not title_ru or not shiki_link:
                     continue
 
-                # Фильтрация по статусу (регистронезависимо)
-                if not is_status_allowed(status):
+                # Фильтрация по статусу (если указан статус, проверяем допустимость)
+                if status and not is_status_allowed(status):
                     continue
 
                 valid_rows.append(
