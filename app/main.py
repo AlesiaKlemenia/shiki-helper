@@ -42,6 +42,27 @@ async def main() -> None:
 
     logger.info("Запуск Shiki-Helper бота...")
 
+    # --- 1.1 Автоматическая инициализация схемы БД (Alembic upgrade head / create_all) ---
+    try:
+        from alembic.config import Config
+        from alembic import command
+        alembic_cfg = Config("alembic.ini")
+        await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+        logger.info("Миграции базы данных успешно применены.")
+    except Exception as exc:
+        logger.warning("Alembic upgrade head завершился с предупреждением: %s. Применяем fallback Base.metadata.create_all...", exc)
+        try:
+            from app.db.models import Base
+            from app.db.session import create_async_engine_from_url
+            init_engine = create_async_engine_from_url(settings.database_url)
+            async with init_engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            await init_engine.dispose()
+            logger.info("Схема базы данных успешно создана через Base.metadata.create_all.")
+        except Exception as create_exc:
+            logger.error("Критическая ошибка инициализации таблиц базы данных: %s", create_exc)
+            raise
+
     # --- 2. FSM Storage (Redis / MemoryStorage) ---
     from app.bot.storage import create_storage
 
