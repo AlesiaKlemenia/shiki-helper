@@ -23,13 +23,28 @@ class OnboardingSG(StatesGroup):
     google_setup = State()
 
 
+TZ_MAP = {
+    "tz_moscow": "Europe/Moscow",
+    "tz_kyiv": "Europe/Kyiv",
+    "tz_almaty": "Asia/Almaty",
+    "tz_yekaterinburg": "Asia/Yekaterinburg",
+}
+
+TIME_MAP = {
+    "time_12_00": "12:00",
+    "time_19_00": "19:00",
+    "time_22_00": "22:00",
+}
+
+
 async def on_timezone_selected(
     event: Any,
     button: Button,
     manager: DialogManager,
 ) -> None:
     """Обработчик выбора таймзоны."""
-    tz = button.widget_id or "Europe/Moscow"
+    btn_id = button.widget_id or "tz_moscow"
+    tz = TZ_MAP.get(btn_id, "Europe/Moscow")
     manager.dialog_data["timezone"] = tz
     await manager.switch_to(OnboardingSG.delivery_time)
 
@@ -40,7 +55,8 @@ async def on_time_selected(
     manager: DialogManager,
 ) -> None:
     """Обработчик выбора времени дайджеста."""
-    time_str = button.widget_id or "19:00"
+    btn_id = button.widget_id or "time_19_00"
+    time_str = TIME_MAP.get(btn_id, "19:00")
     manager.dialog_data["delivery_time"] = time_str
     await manager.switch_to(OnboardingSG.google_setup)
 
@@ -60,12 +76,12 @@ onboarding_dialog = Dialog(
         Const("🌍 <b>Шаг 1 из 3: Выберите ваш часовой пояс</b>\n\n"
               "Это нужно для точной доставки ежедневного дайджеста без задержек:"),
         Row(
-            Button(Const("Москва (UTC+3)"), id="Europe/Moscow", on_click=on_timezone_selected),
-            Button(Const("Киев (UTC+2)"), id="Europe/Kyiv", on_click=on_timezone_selected),
+            Button(Const("Москва (UTC+3)"), id="tz_moscow", on_click=on_timezone_selected),
+            Button(Const("Киев (UTC+2)"), id="tz_kyiv", on_click=on_timezone_selected),
         ),
         Row(
-            Button(Const("Алматы (UTC+5)"), id="Asia/Almaty", on_click=on_timezone_selected),
-            Button(Const("Екатеринбург (UTC+5)"), id="Asia/Yekaterinburg", on_click=on_timezone_selected),
+            Button(Const("Алматы (UTC+5)"), id="tz_almaty", on_click=on_timezone_selected),
+            Button(Const("Екатеринбург (UTC+5)"), id="tz_yekaterinburg", on_click=on_timezone_selected),
         ),
         state=OnboardingSG.timezone,
     ),
@@ -74,9 +90,9 @@ onboarding_dialog = Dialog(
         Const("⏰ <b>Шаг 2 из 3: В какое время присылать дайджест?</b>\n\n"
               "Выберите удобное для вас вечернее или дневное время:"),
         Row(
-            Button(Const("12:00 (Обед)"), id="12:00", on_click=on_time_selected),
-            Button(Const("19:00 (Вечер)"), id="19:00", on_click=on_time_selected),
-            Button(Const("22:00 (Поздно)"), id="22:00", on_click=on_time_selected),
+            Button(Const("12:00 (Обед)"), id="time_12_00", on_click=on_time_selected),
+            Button(Const("19:00 (Вечер)"), id="time_19_00", on_click=on_time_selected),
+            Button(Const("22:00 (Поздно)"), id="time_22_00", on_click=on_time_selected),
         ),
         state=OnboardingSG.delivery_time,
     ),
