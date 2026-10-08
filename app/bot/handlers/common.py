@@ -53,11 +53,42 @@ async def cmd_help(message: Message) -> None:
         "📖 <b>Справка по командам Shiki-Helper:</b>\n\n"
         "• <b>/start</b> — запустить бота и обновить профиль\n"
         "• <b>/menu</b> — главное интерактивное меню управления\n"
+        "• <b>/auth</b> — получить ссылку для привязки Google Таблицы\n"
         "• <b>/sync</b> — запустить немедленную сверку серий и получить дайджест\n"
         "• <b>/help</b> — показать эту справку\n\n"
         "<i>Следите за новыми сериями без ручной рутины! 🚀</i>"
     )
     await message.answer(text, parse_mode="HTML")
+
+
+@common_router.message(Command("auth"))
+async def cmd_auth(message: Message) -> None:
+    """Обработчик команды /auth — генерация ссылки Google OAuth."""
+    from app.config import settings
+    from app.clients.google_sheets import GoogleOAuthHelper
+
+    try:
+        helper = GoogleOAuthHelper(
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+            encryption_key=settings.encryption_key,
+        )
+        auth_url = helper.get_authorization_url()
+        text = (
+            "🔐 <b>Авторизация Google Sheets:</b>\n\n"
+            "1. Перейдите по ссылке ниже и предоставьте доступ к таблицам Google:\n"
+            f"<a href=\"{auth_url}\">👉 <b>Нажмите сюда для авторизации в Google</b></a>\n\n"
+            "2. Скопируйте полученный код авторизации от Google.\n"
+            "3. Отправьте его боту командой: <code>/code ВАШ_КОД</code>\n"
+            "4. Затем привяжите таблицу командой: <code>/sheet ССЫЛКА_ИЛИ_ID_ТАБЛИЦЫ</code>"
+        )
+        await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
+    except Exception as exc:
+        logger.error("Ошибка при формировании Google OAuth ссылки: %s", exc)
+        await message.answer(
+            f"⚠️ <b>Ошибка формирования ссылки авторизации:</b>\n<code>{exc}</code>",
+            parse_mode="HTML",
+        )
 
 
 @common_router.message(Command("menu"))
@@ -84,7 +115,103 @@ async def cmd_menu(message: Message) -> None:
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 
-@common_router.callback_query(lambda c: c.data == "menu_open_titles")
+@common_router.message(Command("code"))
+async def cmd_code(message: Message, session: AsyncSession) -> None:
+    """Обработчик команды /code — обмен кода на refresh_token и сохранение в БД."""
+    from app.config import settings
+    from app.clients.google_sheets import GoogleOAuthHelper
+    from app.db.models import GoogleCredentials
+    import json
+
+    if not message.from_user:
+        return
+
+    text_parts = (message.text or "").strip().split(maxsplit=1)
+    if len(text_parts) < 2:
+        await message.answer("⚠️ Пожалуйста, укажите код после команды:\n<code>/code ВАШ_КОД</code>", parse_mode="HTML")
+        return
+
+    auth_code = text_parts[1].strip()
+    user_id = message.from_user.id
+
+    try:
+        helper = GoogleOAuthHelper(
+            client_id=settings.google_client_id,
+            client_secret=settings.google_client_secret,
+            encryption_key=settings.encryption_key,
+        )
+        encrypted_token = helper.exchange_code_for_encrypted_token(auth_code)
+
+        # Сохраняем или обновляем в базе
+        creds = await session.get(GoogleCredentials, user_id)
+        if creds is None:
+            creds = GoogleCredentials(
+                user_id=user_id,
+                encrypted_refresh_token=encrypted_token,
+                client_id=settings.google_client_id,
+                client_secret=settings.google_client_secret,
+                scopes=json.dumps(["https://www.googleapis.com/auth/spreadsheets"]),
+            )
+            session.add(creds)
+        else:
+            creds.encrypted_refresh_token = encrypted_token
+            creds.client_id = settings.google_client_id
+            creds.client_secret = settings.google_client_secret
+
+        await session.commit()
+        await message.answer(
+            "✅ <b>Google аккаунт успешно подключен!</b>\n\n"
+            "Теперь отправьте ссылку на вашу Google Таблицу:\n"
+            "<code>/sheet ВАША_ССЫЛКА_ИЛИ_ID</code>",
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.error("Ошибка при обмене OAuth кода для пользователя %d: %s", user_id, exc)
+        await message.answer(
+            f"❌ <b>Не удалось авторизовать аккаунт:</b>\n<code>{exc}</code>\n\n"
+            "Попробуйте запросить новую ссылку через /auth.",
+            parse_mode="HTML",
+        )
+
+
+@common_router.message(Command("sheet"))
+async def cmd_sheet(message: Message, session: AsyncSession) -> None:
+    """Обработчик команды /sheet — сохранение Spreadsheet ID таблицы."""
+    import re
+    from app.db.models import GoogleCredentials
+
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+    text_parts = (message.text or "").strip().split(maxsplit=1)
+    if len(text_parts) < 2:
+        await message.answer("⚠️ Укажите ссылку на таблицу:\n<code>/sheet https://docs.google.com/spreadsheets/d/...</code>", parse_mode="HTML")
+        return
+
+    raw_input = text_parts[1].strip()
+
+    # Извлечение ID таблицы из URL
+    match = re.search(r"/spreadsheets/d/([a-zA-Z0-9-_]+)", raw_input)
+    spreadsheet_id = match.group(1) if match else raw_input
+
+    creds = await session.get(GoogleCredentials, user_id)
+    if creds is None:
+        await message.answer(
+            "⚠️ Сначала авторизуйте аккаунт через команду /auth, а затем привяжите таблицу.",
+            parse_mode="HTML",
+        )
+        return
+
+    creds.spreadsheet_id = spreadsheet_id
+    await session.commit()
+
+    await message.answer(
+        f"📊 <b>Таблица успешно привязана!</b>\n"
+        f"ID: <code>{spreadsheet_id}</code>\n\n"
+        "Теперь вы можете проверить синхронизацию командой <b>/sync</b>!",
+        parse_mode="HTML",
+    )
 async def cb_open_titles(query: Any, dialog_manager: Any) -> None:
     """Открытие диалога тайтлов из меню."""
     from app.bot.dialogs.titles.dialog import TitlesSG
