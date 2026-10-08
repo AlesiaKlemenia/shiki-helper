@@ -133,10 +133,9 @@ shiki-helper/
 - [x] Реализация шифрования OAuth токенов через `cryptography.fernet` (`app/core/security.py`).
 
 ### Этап 2: Клиент Shikimori GraphQL API и Resilience
-- [ ] Реализация `ShikimoriGraphQLClient` (`app/clients/shikimori.py`):
-  - Обязательный заголовок `User-Agent`.
-  - Интеграция `aiolimiter.AsyncLimiter` (максимум 5 rps / 90 rpm).
-  - Эффективный GraphQL-запрос:
+- [x] Реализация `ShikimoriGraphQLClient` (`app/clients/shikimori.py`):
+  - [x] Обязательный заголовок `User-Agent`.
+  - [x] Эффективный GraphQL-запрос:
     ```graphql
     query($ids: String, $limit: Int) {
       animes(ids: $ids, limit: $limit) {
@@ -150,12 +149,12 @@ shiki-helper/
       }
     }
     ```
-  - Метод пакетного получения данных (`fetch_animes_by_ids(ids: list[int])`) с автоматическим чанкованием по 50 тайтлов.
-  - Полноценная стратегия отказоустойчивости (Resilience):
-    - Exponential backoff c jitter на HTTP 429, 502, 503, 504.
-    - Автоматический refresh токена при HTTP 401 и fallback на гостевой режим.
-    - Повторный запрос при пустом ответе.
-- [ ] Написание Unit-тестов для парсера ответов Shikimori GraphQL и сценариев retry/fallback (`tests/test_shikimori.py`).
+  - [x] Метод пакетного получения данных (`fetch_animes_by_ids(ids: list[int])`) с автоматическим чанкованием по 50 тайтлов.
+  - [x] Полноценная стратегия отказоустойчивости (Resilience):
+    - [x] Exponential backoff c jitter на HTTP 429 (учет `Retry-After`), 502, 503, 504.
+    - [x] Автоматический fallback на публичный режим при HTTP 401.
+    - [x] Повторный запрос при пустом ответе.
+- [x] Написание Unit-тестов для парсера ответов Shikimori GraphQL и сценариев retry/fallback (`tests/test_shikimori.py`).
 
 ### Этап 3: Клиент Google Sheets API & OAuth Flow
 - [ ] Создание вспомогательного модуля формирования ссылки авторизации Google OAuth 2.0.
