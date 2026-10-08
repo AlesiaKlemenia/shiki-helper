@@ -88,7 +88,43 @@ async def main() -> None:
     # Настройка aiogram-dialog
     setup_dialogs(dp)
 
-    # --- 4. Запуск polling ---
+    # --- 4. Сервер Healthcheck (aiohttp.web для Render $PORT) ---
+    from app.services.health import HealthcheckServer
+
+    me = await bot.get_me()
+    health_server = HealthcheckServer(
+        port=settings.port,
+        bot_username=me.username or "shiki_helper_bot",
+    )
+    await health_server.start()
+
+    # --- 5. Планировщик APScheduler ---
+    from app.services.scheduler import SchedulerService
+
+    scheduler = SchedulerService(
+        bot=bot,
+        session_factory=session_factory,
+        database_url=settings.database_url,
+        admin_id=settings.admin_telegram_id,
+        encryption_key=settings.encryption_key,
+    )
+    await scheduler.start()
+    await scheduler.sync_user_digest_jobs()
+
+    # Уведомление администратора о старте сервиса
+    try:
+        await bot.send_message(
+            chat_id=settings.admin_telegram_id,
+            text=f"🟢 <b>Shiki-Helper успешно запущен!</b>\n"
+                 f"🤖 Бот: @{me.username}\n"
+                 f"🌐 Healthcheck: <code>:{settings.port}/health</code>\n"
+                 f"⏰ Планировщик активен.",
+            parse_mode="HTML",
+        )
+    except Exception as exc:
+        logger.warning("Не удалось отправить стартовое уведомление админу: %s", exc)
+
+    # --- 6. Запуск polling ---
     try:
         logger.info("Бот запущен. Начинаем polling...")
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
@@ -96,6 +132,9 @@ async def main() -> None:
         logger.error("Критическая ошибка polling: %s", exc)
         raise
     finally:
+        await scheduler.shutdown()
+        await health_server.stop()
+        await dynamic_session_maker.dispose()
         await bot.session.close()
         if hasattr(storage, "close"):
             await storage.close()

@@ -91,10 +91,15 @@ class Settings(BaseSettings):
         description="Список Telegram ID пользователей, для которых включен изолированный режим sandbox",
     )
 
-    # --- Логирование ---
+    # --- Логирование и Сервер ---
     log_level: str = Field(
         default="INFO",
         description="Уровень логирования: DEBUG, INFO, WARNING, ERROR",
+    )
+    port: int = Field(
+        default=8000,
+        alias="PORT",
+        description="Порт для HTTP healthcheck сервера (на Render передается через $PORT)",
     )
 
 

@@ -12,6 +12,8 @@
   *Link: [tracks/tracker_search_digest_20261008/index.md](./tracks/tracker_search_digest_20261008/index.md)*
 - [x] **Track: Интерактивный Telegram UI на aiogram-dialog и Sandbox**
   *Link: [tracks/bot_ui_dialogs_20261008/index.md](./tracks/bot_ui_dialogs_20261008/index.md)*
+- [x] **Track: Планировщик APScheduler, Healthcheck, Бэкапы и Recovery**
+  *Link: [tracks/scheduler_backup_health_20261008/plan.md](./tracks/scheduler_backup_health_20261008/plan.md)*
 
 
 
