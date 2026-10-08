@@ -10,6 +10,9 @@
   *Link: [tracks/google_sheets_client_20261008/index.md](./tracks/google_sheets_client_20261008/index.md)*
 - [x] **Track: Бизнес-логика трекинга, Полнотекстовый поиск (FTS5) и генерация дайджеста**
   *Link: [tracks/tracker_search_digest_20261008/index.md](./tracks/tracker_search_digest_20261008/index.md)*
+- [~] **Track: Интерактивный Telegram UI на aiogram-dialog и Sandbox**
+  *Link: [tracks/bot_ui_dialogs_20261008/index.md](./tracks/bot_ui_dialogs_20261008/index.md)*
+
 
 
 
