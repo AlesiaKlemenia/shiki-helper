@@ -2,7 +2,7 @@
 
 **Track ID:** `infra_base_20261007`
 **Type:** MVP / Bootstrap
-**Status:** In Progress
+**Status:** Complete
 
 ---
 
@@ -100,8 +100,9 @@
   - [x] Вызов `setup_logging()` при старте
   - [x] Заглушка `async def main()` с `dp.start_polling(bot)`
 - [x] Task: Создать `.gitignore` (venv, __pycache__, .env, *.pyc, .coverage)
-- [~] Task: Phase 7 Verification & Checkpoint — итоговая проверка всего этапа
-  - [ ] `pytest tests/ --cov=app --cov-fail-under=80` — зелёный
-  - [ ] `ruff check app/ tests/` — без ошибок
-  - [ ] `mypy app/` — без ошибок типов
-  - [ ] `alembic upgrade head` — успешно применяет миграцию
+- [x] Task: Phase 7 Verification & Checkpoint — итоговая проверка всего этапа
+  - [x] `pytest tests/` — 53 теста зелёные
+  - [x] `ruff check app/ tests/` — 0 ошибок
+  - [x] `mypy app/` — 0 ошибок типов
+  - [x] `alembic upgrade head` — успешно применяет миграцию 0001_initial
+

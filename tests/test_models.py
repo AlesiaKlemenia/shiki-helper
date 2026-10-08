@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import pytest
 
 
 class TestUserModel:
@@ -36,17 +35,16 @@ class TestUserModel:
         from app.db.models import User
 
         col = User.__table__.columns["timezone"]
-        assert col.default is not None or col.server_default is not None or str(col.type) is not None
-        # Проверяем через инициализацию объекта
-        user = User(telegram_id=1)  # type: ignore[call-arg]
-        assert user.timezone == "Europe/Moscow"
+        assert col.default is not None
+        assert col.default.arg == "Europe/Moscow"
 
     def test_user_default_is_active(self) -> None:
         """Дефолтное значение is_active — True."""
         from app.db.models import User
 
-        user = User(telegram_id=1)  # type: ignore[call-arg]
-        assert user.is_active is True
+        col = User.__table__.columns["is_active"]
+        assert col.default is not None
+        assert col.default.arg is True
 
     def test_user_table_name(self) -> None:
         """Таблица должна называться 'users'."""
@@ -107,13 +105,9 @@ class TestTrackedTitleModel:
         """last_episodes_aired по умолчанию должен быть 0."""
         from app.db.models import TrackedTitle
 
-        title = TrackedTitle(  # type: ignore[call-arg]
-            user_id=1,
-            shiki_id=123,
-            title_name_ru="Test",
-            status_in_table="В работе",
-        )
-        assert title.last_episodes_aired == 0
+        col = TrackedTitle.__table__.columns["last_episodes_aired"]
+        assert col.default is not None
+        assert col.default.arg == 0
 
     def test_tracked_title_table_name(self) -> None:
         """Таблица должна называться 'tracked_titles'."""

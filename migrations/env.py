@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
+
+# Добавляем корень проекта в sys.path для импорта пакета app
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from alembic import context
 from sqlalchemy import pool

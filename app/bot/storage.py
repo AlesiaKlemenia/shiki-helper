@@ -20,7 +20,6 @@ import logging
 from typing import Optional, Union
 
 import redis.asyncio as redis
-from aiogram.fsm.storage.base import BaseStorage
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
 

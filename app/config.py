@@ -94,6 +94,26 @@ class Settings(BaseSettings):
     )
 
 
-# Единственный экземпляр настроек для использования в приложении.
-# Импортируйте его как: from app.config import settings
-settings = Settings()  # type: ignore[call-arg]
+from typing import Optional, cast
+
+
+def get_settings() -> Settings:
+    """Возвращает экземпляр Settings, читая переменные окружения."""
+    return Settings()  # type: ignore[call-arg]
+
+
+class _LazySettings:
+    """Ленивая обертка над Settings, чтобы импорт app.config не падал при пустом .env в тестах."""
+
+    def __init__(self) -> None:
+        self._settings: Optional[Settings] = None
+
+    def __getattr__(self, name: str) -> object:
+        if self._settings is None:
+            self._settings = get_settings()
+        return getattr(self._settings, name)
+
+
+settings: Settings = cast(Settings, _LazySettings())
+
+

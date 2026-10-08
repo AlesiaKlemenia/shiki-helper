@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -46,6 +46,29 @@ logger = logging.getLogger(__name__)
 _sandbox_engine_var: ContextVar[Optional[AsyncEngine]] = ContextVar(
     "_sandbox_engine_var", default=None
 )
+
+
+class AsyncSessionContext:
+    """Асинхронный контекстный менеджер для AsyncSession."""
+
+    def __init__(self, factory: async_sessionmaker[AsyncSession]) -> None:
+        self._factory = factory
+        self._session: Optional[AsyncSession] = None
+
+    async def __aenter__(self) -> AsyncSession:
+        self._session = self._factory()
+        return self._session
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
+        if self._session is not None:
+            if exc_type is not None:
+                await self._session.rollback()
+            await self._session.close()
 
 
 class DynamicSessionMaker:
@@ -119,16 +142,11 @@ class DynamicSessionMaker:
             _sandbox_engine_var.set(None)
             logger.info("Sandbox mode отключён. Переключение на боевую БД.")
 
-    def get_session(self) -> async_sessionmaker[AsyncSession]:
-        """Возвращает фабрику сессий: sandbox если активен, иначе боевую.
-
-        Returns:
-            async_sessionmaker для текущего контекста (sandbox или production).
-        """
+    @property
+    def session_factory(self) -> async_sessionmaker[AsyncSession]:
+        """Возвращает фабрику сессий: sandbox если активен, иначе боевую."""
         sandbox_engine = _sandbox_engine_var.get()
-
         if sandbox_engine is not None:
-            # Создаём фабрику поверх sandbox engine
             return async_sessionmaker(
                 bind=sandbox_engine,
                 class_=AsyncSession,
@@ -136,8 +154,18 @@ class DynamicSessionMaker:
                 autoflush=False,
                 expire_on_commit=False,
             )
-
         return self._production_factory
+
+    def get_session(self) -> AsyncSessionContext:
+        """Возвращает асинхронный контекстный менеджер сессии.
+
+        Usage:
+            async with session_maker.get_session() as session:
+                ...
+        """
+        factory = self.session_factory
+        return AsyncSessionContext(factory)
+
 
     async def dispose(self) -> None:
         """Закрывает все соединения боевого engine при shutdown."""

@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import os
 
 import pytest
 
@@ -17,7 +16,7 @@ class TestSettingsFields:
         """BOT_TOKEN — обязательное поле для подключения к Telegram API."""
         from app.config import Settings
 
-        assert hasattr(Settings.model_fields, "bot_token"), (
+        assert "bot_token" in Settings.model_fields, (
             "Settings должен содержать поле 'bot_token'"
         )
 
@@ -25,7 +24,7 @@ class TestSettingsFields:
         """DATABASE_URL — строка подключения к PostgreSQL или SQLite."""
         from app.config import Settings
 
-        assert hasattr(Settings.model_fields, "database_url"), (
+        assert "database_url" in Settings.model_fields, (
             "Settings должен содержать поле 'database_url'"
         )
 
@@ -44,7 +43,7 @@ class TestSettingsFields:
         """ENCRYPTION_KEY — 32-байтный Fernet-ключ для шифрования OAuth токенов."""
         from app.config import Settings
 
-        assert hasattr(Settings.model_fields, "encryption_key"), (
+        assert "encryption_key" in Settings.model_fields, (
             "Settings должен содержать поле 'encryption_key'"
         )
 
@@ -52,10 +51,10 @@ class TestSettingsFields:
         """GOOGLE_CLIENT_ID и GOOGLE_CLIENT_SECRET — для OAuth с Google."""
         from app.config import Settings
 
-        assert hasattr(Settings.model_fields, "google_client_id"), (
+        assert "google_client_id" in Settings.model_fields, (
             "Settings должен содержать поле 'google_client_id'"
         )
-        assert hasattr(Settings.model_fields, "google_client_secret"), (
+        assert "google_client_secret" in Settings.model_fields, (
             "Settings должен содержать поле 'google_client_secret'"
         )
 
@@ -63,7 +62,7 @@ class TestSettingsFields:
         """ADMIN_TELEGRAM_ID — ID администратора для уведомлений о сбоях."""
         from app.config import Settings
 
-        assert hasattr(Settings.model_fields, "admin_telegram_id"), (
+        assert "admin_telegram_id" in Settings.model_fields, (
             "Settings должен содержать поле 'admin_telegram_id'"
         )
 

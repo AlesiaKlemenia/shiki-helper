@@ -25,7 +25,6 @@ from sqlalchemy import (
     String,
     Text,
     Time,
-    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -59,18 +58,21 @@ class User(Base):
         String(64),
         nullable=False,
         default="Europe/Moscow",
+        insert_default="Europe/Moscow",
         comment="Часовой пояс для рассылки дайджеста (IANA формат)",
     )
     delivery_time: Mapped[Optional[datetime.time]] = mapped_column(
         Time,
         nullable=True,
         default=datetime.time(19, 0, 0),
+        insert_default=datetime.time(19, 0, 0),
         comment="Время ежедневной рассылки дайджеста",
     )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
+        insert_default=True,
         comment="Активен ли пользователь (может отписаться от рассылки)",
     )
     created_at: Mapped[datetime.datetime] = mapped_column(

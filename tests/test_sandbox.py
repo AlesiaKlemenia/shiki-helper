@@ -64,16 +64,15 @@ class TestDynamicSessionMaker:
     async def test_sandbox_sessions_are_isolated(self) -> None:
         """Sandbox-сессии разных пользователей изолированы друг от друга."""
         from app.db.sandbox import DynamicSessionMaker
-        from app.db.models import Base
 
         production_url = "sqlite+aiosqlite:///:memory:"
         maker = DynamicSessionMaker(database_url=production_url)
 
         await maker.enable_sandbox(user_id=111)
         async with maker.get_session() as session_111:
-            # Создаём таблицы в sandbox user_id=111
-            await session_111.run_sync(Base.metadata.create_all)
             session_111_id = id(session_111)
+            # Сессия активна
+            assert session_111.is_active
 
         await maker.disable_sandbox()
         await maker.enable_sandbox(user_id=222)
