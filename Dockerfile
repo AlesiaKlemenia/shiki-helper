@@ -21,6 +21,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ---- Stage 2: runtime -------------------------------------------------------
 FROM python:3.11-slim AS runtime
 
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 # Системные зависимости runtime (libpq для asyncpg)

@@ -155,6 +155,12 @@ async def main() -> None:
 
     # --- 6. Запуск polling ---
     try:
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            logger.info("Вебхук успешно удален, очередь старых обновлений сброшена.")
+        except Exception as exc:
+            logger.warning("Не удалось выполнить delete_webhook перед polling: %s", exc)
+
         logger.info("Бот запущен. Начинаем polling...")
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as exc:
