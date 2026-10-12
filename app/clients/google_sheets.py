@@ -89,6 +89,26 @@ class SheetRow:
 
         return None
 
+    def extract_uploaded_episodes(self) -> int:
+        """Извлекает количество залитых серий из текста ячейки (например, '5/12', '5/?', '5').
+
+        Примеры:
+            '5/12' -> 5
+            '10/?' -> 10
+            ' 3 '  -> 3
+            ''     -> 0
+            '?'    -> 0
+        """
+        raw = self.current_episodes_text.strip()
+        if not raw:
+            return 0
+
+        # Ищем первое число перед слэшем или строку целиком
+        match = re.match(r"^(\d+)", raw)
+        if match:
+            return int(match.group(1))
+        return 0
+
 
 class GoogleOAuthHelper:
     """Хелпер для прохождения Google OAuth 2.0 flow."""
@@ -300,3 +320,222 @@ class GoogleSheetsClient:
                 ) from exc
 
         return await asyncio.to_thread(_sync_batch_update)
+
+    async def update_title_row(
+        self,
+        spreadsheet_id: str,
+        row_index: int,
+        status: Optional[str] = None,
+        episodes_text: Optional[str] = None,
+    ) -> None:
+        """Обновляет статус (колонка C) и/или серии (колонка D) для конкретной строки тайтла.
+
+        Args:
+            spreadsheet_id: ID Google Таблицы.
+            row_index: Номер строки (1-based, например 5).
+            status: Новый статус релиза (например 'В работе').
+            episodes_text: Отформатированное значение серий (например '3/12').
+        """
+        updates_payload: list[dict[str, Any]] = []
+        if status is not None:
+            updates_payload.append({
+                "range": f"C{row_index}",
+                "values": [[status]],
+            })
+        if episodes_text is not None:
+            updates_payload.append({
+                "range": f"D{row_index}",
+                "values": [[episodes_text]],
+            })
+
+        if not updates_payload:
+            return
+
+        def _sync_update() -> None:
+            service = self._build_service()
+            body = {
+                "valueInputOption": "USER_ENTERED",
+                "data": updates_payload,
+            }
+            try:
+                service.spreadsheets().values().batchUpdate(
+                    spreadsheetId=spreadsheet_id,
+                    body=body,
+                ).execute()
+            except RefreshError as exc:
+                logger.error("Ошибка обновления токена Google OAuth: %s", exc)
+                raise GoogleTokenRevokedError(
+                    "Токен Google OAuth отозван или устарел."
+                ) from exc
+
+        await asyncio.to_thread(_sync_update)
+
+    @staticmethod
+    def col_idx_to_letter(idx: int) -> str:
+        """Конвертирует 0-based индекс колонки в буквы Excel (0 -> A, 1 -> B, 26 -> AA)."""
+        result = []
+        idx += 1
+        while idx > 0:
+            idx, rem = divmod(idx - 1, 26)
+            result.append(chr(65 + rem))
+        return "".join(reversed(result))
+
+    async def get_workable_sheets(self, spreadsheet_id: str) -> list[str]:
+        """Возвращает список рабочих листов таблицы, исключая первый и последний."""
+
+        def _sync_get_sheets() -> list[str]:
+            service = self._build_service()
+            meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            sheets = meta.get("sheets", [])
+            sheet_titles = [s["properties"]["title"] for s in sheets if "properties" in s and "title" in s["properties"]]
+            if len(sheet_titles) <= 2:
+                return []
+            # Исключаем первый и последний листы
+            return sheet_titles[1:-1]
+
+        return await asyncio.to_thread(_sync_get_sheets)
+
+    async def find_and_update_team_subtitles(
+        self,
+        spreadsheet_id: str,
+        shiki_id: int,
+        episode_num: int,
+    ) -> bool:
+        """Ищет тайтл по рабочим вкладкам командной таблицы и обновляет серию/чекбокс первых сабов.
+
+        Логика:
+        1. Получить рабочие вкладки (без первой и последней).
+        2. В каждой вкладке считать строки.
+        3. Найти колонку ссылок на Shikimori и строку с целевым shiki_id.
+        4. Найти колонку серий ('Subs status', 'Сабы', или числовой 'Subs') и чекбокса ('Subs' булевый).
+        5. Обновить номер серии на episode_num.
+        6. Если чекбокс первых сабов был False/пустой -> установить True.
+
+        Returns:
+            True, если тайтл найден и обновлен в таблице команды, иначе False.
+        """
+
+        def _sync_find_and_update() -> bool:
+            service = self._build_service()
+            meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            sheets = meta.get("sheets", [])
+            sheet_titles = [s["properties"]["title"] for s in sheets if "properties" in s and "title" in s["properties"]]
+            if len(sheet_titles) <= 2:
+                return False
+
+            workable_titles = sheet_titles[1:-1]
+
+            for sheet_name in workable_titles:
+                # Читаем лист целиком
+                resp = (
+                    service.spreadsheets()
+                    .values()
+                    .get(spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!A1:Z100")
+                    .execute()
+                )
+                values = resp.get("values", [])
+                if not values:
+                    continue
+
+                headers = [str(h).strip() for h in values[0]]
+                headers_lower = [h.lower() for h in headers]
+
+                # Определяем колонки сабов
+                episodes_col_idx: Optional[int] = None
+                checkbox_col_idx: Optional[int] = None
+
+                # 1. Поиск явных колонок
+                for c_idx, h in enumerate(headers_lower):
+                    if h in {"subs status", "сабы", "статус сабов"}:
+                        episodes_col_idx = c_idx
+                    elif h in {"first subs", "первые сабы"}:
+                        checkbox_col_idx = c_idx
+
+                # 2. Если есть колонки с именем 'subs'
+                subs_indices = [c_idx for c_idx, h in enumerate(headers_lower) if h == "subs"]
+                if subs_indices:
+                    for s_idx in subs_indices:
+                        # Проверяем строки с данными для определения типа
+                        is_checkbox = False
+                        for r in values[1:]:
+                            if len(r) > s_idx:
+                                val_str = str(r[s_idx]).strip().upper()
+                                if val_str in {"TRUE", "FALSE"}:
+                                    is_checkbox = True
+                                    break
+                        if is_checkbox and checkbox_col_idx is None:
+                            checkbox_col_idx = s_idx
+                        elif not is_checkbox and episodes_col_idx is None:
+                            episodes_col_idx = s_idx
+
+                # Если не нашли явную колонку серий, но есть хотя бы одна subs
+                if episodes_col_idx is None and subs_indices:
+                    episodes_col_idx = subs_indices[0]
+
+                # Ищем строку с тайтлом
+                target_row_idx: Optional[int] = None
+                shiki_str = str(shiki_id)
+
+                for r_idx, row in enumerate(values[1:], start=2):
+                    for cell in row:
+                        cell_str = str(cell).strip()
+                        if not cell_str:
+                            continue
+                        if cell_str == shiki_str or f"/animes/{shiki_str}" in cell_str or f"/{shiki_str}/" in cell_str:
+                            target_row_idx = r_idx
+                            break
+                        match = re.search(r"/animes/(?:z|a)?(\d+)", cell_str)
+                        if match and int(match.group(1)) == shiki_id:
+                            target_row_idx = r_idx
+                            break
+                    if target_row_idx is not None:
+                        break
+
+                if target_row_idx is not None:
+                    # Нашли строку! Формируем обновления
+                    batch_data: list[dict[str, Any]] = []
+
+                    # 1. Обновление серии
+                    if episodes_col_idx is not None:
+                        ep_letter = self.col_idx_to_letter(episodes_col_idx)
+                        batch_data.append({
+                            "range": f"'{sheet_name}'!{ep_letter}{target_row_idx}",
+                            "values": [[episode_num]],
+                        })
+
+                    # 2. Обновление чекбокса первых сабов
+                    if checkbox_col_idx is not None:
+                        cb_letter = self.col_idx_to_letter(checkbox_col_idx)
+                        # Проверяем текущее значение ячейки
+                        curr_cb = ""
+                        if len(values[target_row_idx - 1]) > checkbox_col_idx:
+                            curr_cb = str(values[target_row_idx - 1][checkbox_col_idx]).strip().upper()
+
+                        if curr_cb != "TRUE":
+                            batch_data.append({
+                                "range": f"'{sheet_name}'!{cb_letter}{target_row_idx}",
+                                "values": [[True]],
+                            })
+
+                    if batch_data:
+                        service.spreadsheets().values().batchUpdate(
+                            spreadsheetId=spreadsheet_id,
+                            body={
+                                "valueInputOption": "USER_ENTERED",
+                                "data": batch_data,
+                            },
+                        ).execute()
+                        logger.info(
+                            "Обновлена командная таблица %s на листе '%s' для тайтла %d (серия %d)",
+                            spreadsheet_id,
+                            sheet_name,
+                            shiki_id,
+                            episode_num,
+                        )
+                        return True
+
+            return False
+
+        return await asyncio.to_thread(_sync_find_and_update)
+
+

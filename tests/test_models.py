@@ -128,3 +128,21 @@ class TestTrackedTitleModel:
 
         col = TrackedTitle.__table__.columns["total_episodes"]
         assert col.nullable is True
+
+    def test_tracked_title_ignore_reminders_column(self) -> None:
+        """ignore_reminders должен быть Boolean, non-nullable со значением по умолчанию False."""
+        from app.db.models import TrackedTitle
+
+        col = TrackedTitle.__table__.columns["ignore_reminders"]
+        assert col is not None
+        assert col.nullable is False
+        assert col.default is not None
+        assert col.default.arg is False
+
+    def test_tracked_title_default_ignore_reminders(self) -> None:
+        """Дефолтное значение ignore_reminders — False."""
+        from app.db.models import TrackedTitle
+
+        col = TrackedTitle.__table__.columns["ignore_reminders"]
+        assert col.default is not None
+        assert col.default.arg is False

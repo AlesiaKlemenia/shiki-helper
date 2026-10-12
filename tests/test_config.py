@@ -58,6 +58,16 @@ class TestSettingsFields:
             "Settings должен содержать поле 'google_client_secret'"
         )
 
+    def test_settings_has_team_spreadsheet_id(self) -> None:
+        """TEAM_SPREADSHEET_ID — опциональный ID общей таблицы команды."""
+        from app.config import Settings
+
+        field = Settings.model_fields.get("team_spreadsheet_id")
+        assert field is not None, "Settings должен содержать поле 'team_spreadsheet_id'"
+        assert not field.is_required(), (
+            "team_spreadsheet_id должен быть опциональным полем"
+        )
+
     def test_settings_has_admin_telegram_id(self) -> None:
         """ADMIN_TELEGRAM_ID — ID администратора для уведомлений о сбоях."""
         from app.config import Settings
@@ -116,5 +126,5 @@ class TestSettingsFields:
 
         from app.config import Settings
 
-        settings = Settings()  # type: ignore[call-arg]
+        settings = Settings(_env_file=None)  # type: ignore[call-arg]
         assert settings.redis_url is None

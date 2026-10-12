@@ -120,16 +120,16 @@ class SchedulerService:
                 encryption_key=self.encryption_key,
             )
             try:
-                deltas = await tracker.check_user_updates(user_id=user_id)
-                if deltas:
-                    text = format_digest_html(deltas)
+                result = await tracker.check_user_updates_full(user_id=user_id)
+                if result.has_content:
+                    text = format_digest_html(result.deltas, result.debts)
                     await self.bot.send_message(
                         chat_id=user_id,
                         text=text,
-                        parse_mode="HTML",
+                        parse_mode="MarkdownV2",
                         disable_web_page_preview=True,
                     )
                 else:
-                    logger.info("Новых серий для user_id=%d нет, дайджест не отправляется.", user_id)
+                    logger.info("Новых серий и долгов для user_id=%d нет, дайджест не отправляется.", user_id)
             except Exception as exc:
                 logger.error("Ошибка при формировании планового дайджеста для user_id=%d: %s", user_id, exc)

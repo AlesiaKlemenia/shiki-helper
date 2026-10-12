@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clients.google_sheets import GoogleSheetsClient, format_episodes_cell
 from app.clients.shikimori import AnimeInfo, ShikimoriGraphQLClient
 from app.db.models import GoogleCredentials, TrackedTitle
-from app.services.digest import TitleUpdateDelta
+from app.services.digest import DigestResult, TitleDebtItem, TitleUpdateDelta
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +29,25 @@ class TrackerService:
         self.user_agent = user_agent
 
     async def check_user_updates(self, user_id: int) -> list[TitleUpdateDelta]:
-        """Проверяет обновления серий для конкретного пользователя.
+        """Проверяет обновления серий для пользователя и возвращает дельты.
+
+        Для получения и дельт, и долгов используйте `check_user_updates_full`.
+        """
+        result = await self.check_user_updates_full(user_id=user_id)
+        return result.deltas
+
+    async def check_user_updates_full(self, user_id: int) -> DigestResult:
+        """Полная сверка: находит вышедшие серии и отстающие по заливке тайтлы (долги).
 
         Шаги:
         1. Загрузка пользователя и его GoogleCredentials (если есть).
         2. Определение тайтлов: из Google Таблицы (с приоритетом) или из БД.
         3. Запрос актуального состояния эпизодов через Shikimori GraphQL.
-        4. Вычисление дельты (aired_new > aired_old).
-        5. Пакетное обновление Google Таблицы (при наличии).
-        6. Обновление записей в таблице `tracked_titles`.
-        7. Возврат списка `TitleUpdateDelta`.
+        4. Вычисление дельт (aired_new > aired_old).
+        5. Вычисление долгов (aired_new > uploaded_episodes) с учетом ignore_reminders.
+        6. Пакетное обновление Google Таблицы (при наличии).
+        7. Обновление записей в таблице `tracked_titles`.
+        8. Возврат `DigestResult(deltas, debts)`.
         """
         # 1. Проверяем наличие Google Credentials
         stmt_creds = select(GoogleCredentials).where(GoogleCredentials.user_id == user_id)
@@ -50,8 +59,8 @@ class TrackerService:
         res_titles = await self.session.execute(stmt_titles)
         db_titles_map = {t.shiki_id: t for t in res_titles.scalars().all()}
 
-        # Собираем целевые тайтлы для проверки: {shiki_id: (title_name, row_index, old_aired, status, total_eps, current_sheet_text)}
-        target_map: dict[int, tuple[str, Optional[int], int, str, Optional[int], str]] = {}
+        # Собираем целевые тайтлы: {shiki_id: (title_name, row_index, old_aired, status, total_eps, cur_sheet_text, uploaded_eps)}
+        target_map: dict[int, tuple[str, Optional[int], int, str, Optional[int], str, int]] = {}
         sheets_client: Optional[GoogleSheetsClient] = None
         spreadsheet_id: Optional[str] = None
 
@@ -73,6 +82,7 @@ class TrackerService:
                 existing = db_titles_map.get(shiki_id)
                 old_aired = existing.last_episodes_aired if existing else 0
                 total_episodes = existing.total_episodes if existing else None
+                uploaded_eps = row.extract_uploaded_episodes()
 
                 target_map[shiki_id] = (
                     row.title_name_ru,
@@ -81,6 +91,7 @@ class TrackerService:
                     row.status,
                     total_episodes,
                     row.current_episodes_text,
+                    uploaded_eps,
                 )
         else:
             # Источник — только БД
@@ -92,10 +103,11 @@ class TrackerService:
                     t.status_in_table,
                     t.total_episodes,
                     "",
+                    t.last_episodes_aired,
                 )
 
         if not target_map:
-            return []
+            return DigestResult(deltas=[], debts=[])
 
         # 3. Запрос свежих данных из Shikimori
         shiki_ids = list(target_map.keys())
@@ -105,10 +117,11 @@ class TrackerService:
         anime_infos_map: dict[int, AnimeInfo] = {a.id: a for a in anime_infos}
 
         deltas: list[TitleUpdateDelta] = []
+        debts: list[TitleDebtItem] = []
         sheets_updates: list[tuple[int, str]] = []
 
-        # 4. Анализ дельт
-        for shiki_id, (title_name, row_idx, old_aired, status, total_eps, cur_sheet_text) in target_map.items():
+        # 4. Анализ дельт и долгов
+        for shiki_id, (title_name, row_idx, old_aired, status, total_eps, cur_sheet_text, uploaded_eps) in target_map.items():
             info = anime_infos_map.get(shiki_id)
             if not info:
                 continue
@@ -149,6 +162,20 @@ class TrackerService:
                     )
                 )
 
+            # Проверка на отставание (долг): new_aired > uploaded_eps и напоминания не отключены
+            is_ignored = bool(existing_model.ignore_reminders)
+            if new_aired > uploaded_eps and not is_ignored:
+                debts.append(
+                    TitleDebtItem(
+                        title_name_ru=title_name,
+                        shiki_id=shiki_id,
+                        uploaded_episodes=uploaded_eps,
+                        aired_episodes=new_aired,
+                        total_episodes=actual_total,
+                        shikimori_url=info.url,
+                    )
+                )
+
             # Добавляем в список на обновление ячейки в Google Sheets, если значение в таблице отличается
             if row_idx is not None:
                 expected_cell_val = format_episodes_cell(aired=new_aired, total=actual_total)
@@ -173,4 +200,4 @@ class TrackerService:
         # 6. Сохранение изменений в БД
         await self.session.commit()
 
-        return deltas
+        return DigestResult(deltas=deltas, debts=debts)

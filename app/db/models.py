@@ -225,6 +225,13 @@ class TrackedTitle(Base):
         nullable=True,
         comment="Всего серий по плану (None если неизвестно)",
     )
+    ignore_reminders: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        insert_default=False,
+        comment="Игнорировать ли напоминания о долгах по сериям",
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

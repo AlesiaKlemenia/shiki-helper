@@ -26,6 +26,7 @@ class Settings(BaseSettings):
         google_client_id: OAuth Client ID из Google Cloud Console.
         google_client_secret: OAuth Client Secret из Google Cloud Console.
         admin_telegram_id: Telegram ID администратора для уведомлений.
+        team_spreadsheet_id: ID общей таблицы команды для отслеживания субтитров.
         log_level: Уровень логирования (DEBUG/INFO/WARNING/ERROR).
     """
 
@@ -79,6 +80,12 @@ class Settings(BaseSettings):
     google_client_secret: str = Field(
         ...,
         description="OAuth 2.0 Client Secret из Google Cloud Console",
+    )
+
+    # --- Google Sheets (командная таблица) ---
+    team_spreadsheet_id: Optional[str] = Field(
+        default=None,
+        description="ID общей таблицы команды для отслеживания субтитров",
     )
 
     # --- Администрирование ---

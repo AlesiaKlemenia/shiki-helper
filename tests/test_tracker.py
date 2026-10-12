@@ -215,3 +215,80 @@ class TestTrackerService:
             deltas = await tracker.check_user_updates(user_id=user_id)
 
             assert len(deltas) == 0
+
+    @pytest.mark.asyncio
+    async def test_tracker_calculates_debts_and_respects_ignore_reminders(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Проверка расчета долгов: отстающие серии фиксируются, если ignore_reminders=False, и игнорируются при ignore_reminders=True."""
+        user_id = 5001
+
+        # Тайтл 1: Отстает (залито 2, вышло 4), ignore_reminders=False -> должен быть в долгах
+        title_debt = TrackedTitle(
+            user_id=user_id,
+            shiki_id=401,
+            title_name_ru="Тайтл с долгом",
+            status_in_table="В работе",
+            row_index=None,
+            last_episodes_aired=2,
+            total_episodes=12,
+            ignore_reminders=False,
+        )
+        # Тайтл 2: Отстает (залито 1, вышло 3), но ignore_reminders=True -> НЕ должен быть в долгах
+        title_ignored = TrackedTitle(
+            user_id=user_id,
+            shiki_id=402,
+            title_name_ru="Тайтл в игноре",
+            status_in_table="В работе",
+            row_index=None,
+            last_episodes_aired=1,
+            total_episodes=12,
+            ignore_reminders=True,
+        )
+        db_session.add_all([title_debt, title_ignored])
+        await db_session.commit()
+
+        mock_anime_infos = [
+            AnimeInfo(
+                id=401,
+                name="Title Debt",
+                russian="Тайтл с долгом",
+                status="ongoing",
+                episodes=12,
+                episodes_aired=4,
+                url="https://shikimori.one/animes/401",
+            ),
+            AnimeInfo(
+                id=402,
+                name="Title Ignored",
+                russian="Тайтл в игноре",
+                status="ongoing",
+                episodes=12,
+                episodes_aired=3,
+                url="https://shikimori.one/animes/402",
+            ),
+        ]
+
+        with patch("app.services.tracker.ShikimoriGraphQLClient") as mock_shiki_cls:
+            mock_shiki_inst = MagicMock()
+            mock_shiki_inst.__aenter__ = AsyncMock(return_value=mock_shiki_inst)
+            mock_shiki_inst.__aexit__ = AsyncMock(return_value=None)
+            mock_shiki_inst.fetch_animes_by_ids = AsyncMock(return_value=mock_anime_infos)
+            mock_shiki_cls.return_value = mock_shiki_inst
+
+            tracker = TrackerService(
+                session=db_session,
+                encryption_key="dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXQ=",
+            )
+            result = await tracker.check_user_updates_full(user_id=user_id)
+
+            # Дельты зафиксированы для обоих тайтлов
+            assert len(result.deltas) == 2
+
+            # Долг должен быть только для тайтла 401
+            assert len(result.debts) == 1
+            assert result.debts[0].shiki_id == 401
+            assert result.debts[0].title_name_ru == "Тайтл с долгом"
+            assert result.debts[0].uploaded_episodes == 2
+            assert result.debts[0].aired_episodes == 4
+            assert result.debts[0].missing_episodes_text == "3-4"

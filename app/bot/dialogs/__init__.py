@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 from app.bot.dialogs.onboarding.dialog import OnboardingSG, onboarding_dialog
+from app.bot.dialogs.settings.dialog import SettingsSG, settings_dialog
 from app.bot.dialogs.titles.dialog import TitlesSG, titles_dialog
 
 __all__ = [
     "OnboardingSG",
     "onboarding_dialog",
+    "SettingsSG",
+    "settings_dialog",
     "TitlesSG",
     "titles_dialog",
 ]
