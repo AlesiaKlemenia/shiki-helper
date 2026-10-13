@@ -156,18 +156,22 @@ async def main() -> None:
     except Exception as exc:
         logger.warning("Не удалось отправить стартовое уведомление админу: %s", exc)
 
+    logger.info("Шаг 6: Запуск polling...")
+
     # --- 6. Запуск polling ---
     try:
+        logger.info("Шаг 6.1: Вызов delete_webhook...")
         try:
             await bot.delete_webhook(drop_pending_updates=True)
-            logger.info("Вебхук успешно удален, очередь старых обновлений сброшена.")
+            logger.info("Шаг 6.1: Вебхук успешно удален, очередь старых обновлений сброшена.")
         except Exception as exc:
-            logger.warning("Не удалось выполнить delete_webhook перед polling: %s", exc)
+            logger.warning("Шаг 6.1: Не удалось выполнить delete_webhook перед polling: %s", exc)
 
-        logger.info("Бот запущен. Начинаем polling...")
+        logger.info("Шаг 6.2: Бот запущен. Начинаем polling...")
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        logger.info("Шаг 6.3: Polling завершён.")
     except Exception as exc:
-        logger.error("Критическая ошибка polling: %s", exc)
+        logger.error("Критическая ошибка polling: %s", exc, exc_info=True)
         raise
     finally:
         await scheduler.shutdown()
