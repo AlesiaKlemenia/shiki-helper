@@ -102,3 +102,23 @@ class TestDynamicSessionMaker:
             assert maker.is_sandbox_active is True
         finally:
             await maker.disable_sandbox()
+
+    @pytest.mark.asyncio
+    async def test_sandbox_engine_var_get_returns_engine_when_active(self) -> None:
+        """_sandbox_engine_var_get() возвращает AsyncEngine когда sandbox активен."""
+        from sqlalchemy.ext.asyncio import AsyncEngine
+
+        from app.db.sandbox import DynamicSessionMaker
+
+        maker = DynamicSessionMaker(database_url="sqlite+aiosqlite:///:memory:")
+        assert maker._sandbox_engine_var_get() is None
+
+        await maker.enable_sandbox(user_id=42)
+        try:
+            engine = maker._sandbox_engine_var_get()
+            assert engine is not None
+            assert isinstance(engine, AsyncEngine)
+        finally:
+            await maker.disable_sandbox()
+
+        assert maker._sandbox_engine_var_get() is None

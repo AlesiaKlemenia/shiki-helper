@@ -165,7 +165,7 @@ async def main() -> None:
             logger.warning("Не удалось выполнить delete_webhook перед polling: %s", exc)
 
         logger.info("Бот запущен. Начинаем polling...")
-        await dp.start_polling(bot, allowed_updates=None)
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     except Exception as exc:
         logger.error("Критическая ошибка polling: %s", exc)
         raise

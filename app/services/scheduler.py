@@ -126,7 +126,7 @@ class SchedulerService:
                     await self.bot.send_message(
                         chat_id=user_id,
                         text=text,
-                        parse_mode="MarkdownV2",
+                        parse_mode="HTML",
                         disable_web_page_preview=True,
                     )
                 else:

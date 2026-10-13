@@ -162,6 +162,16 @@ class DynamicSessionMaker:
         factory = self.session_factory
         return AsyncSessionContext(factory)
 
+    def _sandbox_engine_var_get(self) -> Optional[AsyncEngine]:
+        """Возвращает активный sandbox AsyncEngine из ContextVar (или None если sandbox не включён).
+
+        Используется SandboxMiddleware для инициализации схемы БД в in-memory SQLite.
+
+        Returns:
+            Текущий sandbox AsyncEngine или None.
+        """
+        return _sandbox_engine_var.get()
+
 
     async def dispose(self) -> None:
         """Закрывает все соединения боевого engine при shutdown."""

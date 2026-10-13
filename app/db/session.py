@@ -41,6 +41,11 @@ def normalize_database_url(url: str) -> str:
         return url
 
     # Исправляем возможные опечатки в схеме (например, "postgresql+asyncpg:://")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
     if ":///" in url:
         # Для sqlite:/// это норма, для postgresql — нет
         if not url.startswith("sqlite"):

@@ -83,3 +83,37 @@ async def handle_unknown_intent(event: ErrorEvent, state: FSMContext) -> None:
 async def handle_global_error(event: ErrorEvent) -> None:
     """Глобальный перехватчик всех необработанных исключений с логированием."""
     logger.exception("Необработанная ошибка при обработке апдейта: %s", event.exception)
+
+    try:
+        import html
+        from app.config import settings
+
+        err_msg = html.escape(str(event.exception))
+
+        update = event.update
+        target_message = update.message if update else None
+        if not target_message and update and update.callback_query:
+            target_message = update.callback_query.message
+
+        if target_message and hasattr(target_message, "answer"):
+            try:
+                await target_message.answer(
+                    "⚠️ Произошла ошибка при обработке запроса. Мы уже разбираемся!",
+                )
+            except Exception as ans_exc:
+                logger.debug("Не удалось отправить ответ пользователю: %s", ans_exc)
+
+        # Уведомляем администратора о сбое в рантайме
+        if settings.admin_telegram_id:
+            bot = getattr(event, "bot", None)
+            if not bot and update and hasattr(update, "bot"):
+                bot = update.bot
+            if bot:
+                await bot.send_message(
+                    chat_id=settings.admin_telegram_id,
+                    text=f"🚨 <b>Ошибка при обработке запроса:</b>\n<code>{err_msg}</code>",
+                    parse_mode="HTML",
+                )
+    except Exception as notify_exc:
+        logger.error("Не удалось отправить уведомление об ошибке админу: %s", notify_exc)
+
