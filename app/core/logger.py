@@ -51,8 +51,8 @@ def setup_logging(level: str = "INFO") -> None:
         handler.setFormatter(formatter)
         root_logger.addHandler(handler)
 
-    # Снижаем шумность сторонних библиотек
-    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    # Снижаем шумность сторонних библиотек, но оставляем логирование апдейтов aiogram
+    logging.getLogger("aiogram").setLevel(logging.INFO)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 

@@ -30,6 +30,47 @@ from sqlalchemy.ext.asyncio import (
 logger = logging.getLogger(__name__)
 
 
+def normalize_database_url(url: str) -> str:
+    """Нормализует строку подключения к БД для совместимости с asyncpg/aiosqlite.
+
+    Удаляет опечатки схемы (например postgresql+asyncpg:://),
+    параметры sslmode (заменяет на ssl) и специфичные для libpq параметры,
+    не поддерживаемые asyncpg (channel_binding, gssencmode и т.д.).
+    """
+    if not url:
+        return url
+
+    # Исправляем возможные опечатки в схеме (например, "postgresql+asyncpg:://")
+    if ":///" in url:
+        # Для sqlite:/// это норма, для postgresql — нет
+        if not url.startswith("sqlite"):
+            url = url.replace(":///", "://", 1)
+    elif ":://" in url:
+        url = url.replace(":://", "://", 1)
+
+    if not url.startswith("sqlite"):
+        import urllib.parse
+
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.query:
+            query_params = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+            cleaned_params = []
+            for k, v in query_params:
+                # asyncpg не поддерживает channel_binding или gssencmode напрямую в connect
+                if k.lower() in {"channel_binding", "gssencmode"}:
+                    continue
+                if k.lower() == "sslmode":
+                    cleaned_params.append(("ssl", v))
+                else:
+                    cleaned_params.append((k, v))
+            new_query = urllib.parse.urlencode(cleaned_params)
+            url = urllib.parse.urlunsplit(
+                (parsed.scheme, parsed.netloc, parsed.path, new_query, parsed.fragment)
+            )
+
+    return url
+
+
 def create_async_engine_from_url(database_url: str) -> AsyncEngine:
     """Создаёт async SQLAlchemy engine по строке подключения.
 
@@ -45,18 +86,14 @@ def create_async_engine_from_url(database_url: str) -> AsyncEngine:
     Returns:
         Настроенный AsyncEngine.
     """
+    database_url = normalize_database_url(database_url)
     is_sqlite = database_url.startswith("sqlite")
 
     engine_kwargs: dict = {
         "echo": False,  # Включить для отладки SQL: True
     }
 
-    if not is_sqlite:
-        # Для PostgreSQL c драйвером asyncpg параметр sslmode не поддерживается напрямую в DBAPI kwargs,
-        # поэтому заменяем sslmode= на ssl=, если он передан в строке подключения.
-        if "sslmode=" in database_url:
-            database_url = database_url.replace("sslmode=require", "ssl=require").replace("sslmode=", "ssl=")
-    else:
+    if is_sqlite:
         # SQLite не поддерживает connection pool в async режиме
         engine_kwargs["connect_args"] = {"check_same_thread": False}
 

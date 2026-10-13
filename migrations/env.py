@@ -57,9 +57,8 @@ def get_database_url() -> str:
                 "Установите переменную окружения DATABASE_URL или создайте .env файл."
             ) from exc
 
-    if url and "sslmode=" in url and not url.startswith("sqlite"):
-        url = url.replace("sslmode=require", "ssl=require").replace("sslmode=", "ssl=")
-
+    from app.db.session import normalize_database_url
+    url = normalize_database_url(url)
     return url
 
 

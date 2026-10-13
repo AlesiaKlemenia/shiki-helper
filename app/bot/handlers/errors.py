@@ -77,3 +77,9 @@ async def handle_unknown_intent(event: ErrorEvent, state: FSMContext) -> None:
             )
         except Exception as exc:
             logger.error("Ошибка отправки меню при UnknownIntent: %s", exc)
+
+
+@errors_router.error()
+async def handle_global_error(event: ErrorEvent) -> None:
+    """Глобальный перехватчик всех необработанных исключений с логированием."""
+    logger.exception("Необработанная ошибка при обработке апдейта: %s", event.exception)
