@@ -37,19 +37,15 @@ def setup_logging(level: str = "INFO") -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
 
-    # Проверяем, не добавлен ли уже StreamHandler (идемпотентность)
-    has_stream_handler = any(
-        isinstance(handler, logging.StreamHandler)
-        and not isinstance(handler, logging.FileHandler)
-        for handler in root_logger.handlers
-    )
+    # Очищаем старые хэндлеры (включая stderr-хэндлер от alembic fileConfig)
+    for h in list(root_logger.handlers):
+        root_logger.removeHandler(h)
 
-    if not has_stream_handler:
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(numeric_level)
-        formatter = logging.Formatter(fmt=_LOG_FORMAT, datefmt=_DATE_FORMAT)
-        handler.setFormatter(formatter)
-        root_logger.addHandler(handler)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(numeric_level)
+    formatter = logging.Formatter(fmt=_LOG_FORMAT, datefmt=_DATE_FORMAT)
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
 
     # Снижаем шумность сторонних библиотек, но оставляем логирование апдейтов aiogram
     logging.getLogger("aiogram").setLevel(logging.INFO)

@@ -48,8 +48,11 @@ async def main() -> None:
         from alembic import command
         alembic_cfg = Config("alembic.ini")
         await asyncio.to_thread(command.upgrade, alembic_cfg, "head")
+        # Повторно инициализируем логирование, так как alembic.ini сбрасывает настройки root-логгера
+        setup_logging(settings.log_level)
         logger.info("Миграции базы данных успешно применены.")
     except Exception as exc:
+        setup_logging(settings.log_level)
         logger.warning("Alembic upgrade head завершился с предупреждением: %s. Применяем fallback Base.metadata.create_all...", exc)
         try:
             from app.db.models import Base
@@ -162,7 +165,7 @@ async def main() -> None:
             logger.warning("Не удалось выполнить delete_webhook перед polling: %s", exc)
 
         logger.info("Бот запущен. Начинаем polling...")
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        await dp.start_polling(bot, allowed_updates=None)
     except Exception as exc:
         logger.error("Критическая ошибка polling: %s", exc)
         raise
