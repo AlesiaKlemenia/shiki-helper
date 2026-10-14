@@ -142,6 +142,7 @@ async def main() -> None:
     )
     await scheduler.start()
     await scheduler.sync_user_digest_jobs()
+    logger.info("Шаг 5: sync_user_digest_jobs завершён.")
 
     # Уведомление администратора о старте сервиса
     try:

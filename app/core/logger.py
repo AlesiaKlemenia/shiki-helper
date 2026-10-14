@@ -41,10 +41,11 @@ def setup_logging(level: str = "INFO") -> None:
     for h in list(root_logger.handlers):
         root_logger.removeHandler(h)
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(sys.stderr)
     handler.setLevel(numeric_level)
     formatter = logging.Formatter(fmt=_LOG_FORMAT, datefmt=_DATE_FORMAT)
     handler.setFormatter(formatter)
+    handler.terminator = "\n"
     root_logger.addHandler(handler)
 
     # Снижаем шумность сторонних библиотек, но оставляем логирование апдейтов aiogram
