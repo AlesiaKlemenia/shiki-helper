@@ -49,6 +49,7 @@ def setup_logging(level: str = "INFO") -> None:
 
     # Снижаем шумность сторонних библиотек, но оставляем логирование апдейтов aiogram
     logging.getLogger("aiogram").setLevel(logging.INFO)
+    logging.getLogger("aiogram.dispatcher").setLevel(logging.DEBUG)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
 

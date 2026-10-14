@@ -20,6 +20,10 @@ common_router = Router(name="common_router")
 @common_router.message(CommandStart())
 async def cmd_start(message: Message, session: AsyncSession) -> None:
     """Обработчик команды /start."""
+    logger.info(
+        "[CMD] /start вызван от user_id=%s",
+        message.from_user.id if message.from_user else "unknown",
+    )
     if not message.from_user:
         return
 
@@ -326,6 +330,11 @@ async def nav_settings(message: Message, dialog_manager: Any) -> None:
 @common_router.message()
 async def fallback_unknown_message(message: Message) -> None:
     """Фоллбэк для неизвестных текстовых сообщений, не перехваченных диалогами."""
+    logger.info(
+        "[FALLBACK] Неизвестное сообщение от user_id=%s: %r",
+        message.from_user.id if message.from_user else "unknown",
+        message.text,
+    )
     await message.answer(
         "Я не понял это сообщение. Воспользуйтесь кнопками меню ниже или перешлите лог сабов",
         reply_markup=get_persistent_main_keyboard(),
