@@ -21,7 +21,7 @@ from typing import Optional, Union
 
 import redis.asyncio as redis
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.fsm.storage.redis import RedisStorage
+from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
 
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,13 @@ async def create_storage(
         client = redis.from_url(redis_url, decode_responses=False)
         await client.ping()
         logger.info("Redis доступен (%s) — используется RedisStorage.", redis_url)
-        return RedisStorage(redis=client)
+        # aiogram-dialog хранит контексты/стеки/данные под ключами с destiny.
+        # DefaultKeyBuilder по умолчанию destiny не поддерживает (=False), из-за чего
+        # на каждом апдейте падает ValueError и команды не отвечают.
+        return RedisStorage(
+            redis=client,
+            key_builder=DefaultKeyBuilder(with_destiny=True),
+        )
 
     except Exception as exc:
         logger.warning(
