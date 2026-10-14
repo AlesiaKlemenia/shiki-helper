@@ -30,7 +30,10 @@ config = context.config
 
 # Настройка логирования из alembic.ini
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: иначе fileConfig глушит уже созданные
+    # логгеры (aiogram, aiogram.dispatcher, __main__) и все ошибки диспетчера
+    # становятся невидимыми в логах.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Метаданные для автогенерации миграций
 target_metadata = Base.metadata
